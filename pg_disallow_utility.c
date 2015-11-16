@@ -8,7 +8,8 @@ PG_MODULE_MAGIC;
 static ProcessUtility_hook_type prev_ProcessUtility = NULL;
 
 /* GUC variables */
-static bool	disallow_alter_system;
+static bool	disallow_alter_system = false;
+static bool	disallow_truncate = false;
 
 /* Function declarations */
 void		_PG_init(void);
@@ -30,6 +31,17 @@ _PG_init(void)
 							 "Disallows ALTER SYSTEM commands to be executed.",
 							 NULL,
 							 &disallow_alter_system,
+							 false,
+							 PGC_POSTMASTER,
+							 0,
+							 NULL,
+							 NULL,
+							 NULL);
+
+	DefineCustomBoolVariable("pg_disallow_utility.truncate",
+							 "Disallows TRUNCATE commands to be executed.",
+							 NULL,
+							 &disallow_truncate,
 							 false,
 							 PGC_POSTMASTER,
 							 0,
@@ -66,6 +78,9 @@ pgdu_ProcessUtility(Node *parsetree, const char *queryString,
 	{
 		case T_AlterSystemStmt:
 			PreventCommandIfDisallowed("ALTER SYSTEM", disallow_alter_system);
+			break;
+		case T_TruncateStmt:
+			PreventCommandIfDisallowed("TRUNCATE", disallow_truncate);
 			break;
 		default:
 			/* do nothing */
