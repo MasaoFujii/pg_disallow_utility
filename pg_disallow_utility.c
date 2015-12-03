@@ -9,6 +9,7 @@ static ProcessUtility_hook_type prev_ProcessUtility = NULL;
 
 /* GUC variables */
 static bool	disallow_alter_system = false;
+static bool	disallow_copy_program = false;
 static bool	disallow_truncate = false;
 
 /* Function declarations */
@@ -31,6 +32,17 @@ _PG_init(void)
 							 "Disallows ALTER SYSTEM commands to be executed.",
 							 NULL,
 							 &disallow_alter_system,
+							 false,
+							 PGC_SIGHUP,
+							 0,
+							 NULL,
+							 NULL,
+							 NULL);
+
+	DefineCustomBoolVariable("pg_disallow_utility.copy_program",
+							 "Disallows COPY PROGRAM commands to be executed.",
+							 NULL,
+							 &disallow_copy_program,
 							 false,
 							 PGC_SIGHUP,
 							 0,
@@ -78,6 +90,10 @@ pgdu_ProcessUtility(Node *parsetree, const char *queryString,
 	{
 		case T_AlterSystemStmt:
 			PreventCommandIfDisallowed("ALTER SYSTEM", disallow_alter_system);
+			break;
+		case T_CopyStmt:
+			if (((CopyStmt *) parsetree)->is_program)
+				PreventCommandIfDisallowed("COPY PROGRAM", disallow_copy_program);
 			break;
 		case T_TruncateStmt:
 			PreventCommandIfDisallowed("TRUNCATE", disallow_truncate);
